@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/onboarding",
+      "destination": "https://script.google.com/macros/s/AKfycbxUQhqY2AHUStDtbvFP-hLy1eAXu6MPzHASucDY3DvgD5Ukt-T_baREfcvPMtAynr_XnQ/exec"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
