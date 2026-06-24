@@ -29,8 +29,12 @@ export function AppHeader({ variant, subtitle, nav }: AppHeaderProps) {
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link to={variant === 'admin' ? '/admin' : variant === 'merchant' ? '/dashboard' : '/'} className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <ElvaLogo height={48} className="shrink-0 sm:hidden" />
-          <ElvaLogo height={56} className="hidden shrink-0 sm:inline-flex" />
+          <span className="inline-flex shrink-0 sm:hidden">
+            <ElvaLogo height={48} linkable={false} />
+          </span>
+          <span className="hidden shrink-0 sm:inline-flex">
+            <ElvaLogo height={56} linkable={false} />
+          </span>
           <div className="min-w-0 border-l border-slate-200 pl-3 sm:pl-4">
             <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
             <p className="truncate text-xs text-slate-500">{meta}</p>
