@@ -14,7 +14,9 @@ export function WorkflowReviewPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSubmit = dashboard?.canEdit && dashboard.agreementsAccepted
+  const reviewStep = dashboard?.steps.find((s) => s.step === 5)
+  const reviewComplete = Boolean(dashboard?.reviewConfirmed || reviewStep?.complete)
+  const canSubmit = Boolean(dashboard?.canEdit && dashboard.agreementsAccepted && reviewComplete)
 
   const handleSubmit = async () => {
     if (!session?.sessionToken) return
@@ -56,13 +58,20 @@ export function WorkflowReviewPage() {
         ))}
 
         <Card>
-          <p className="text-sm text-slate-600">
-            Use the detailed review page to verify all collected information, or submit directly if all steps are complete.
-          </p>
+          {reviewComplete ? (
+            <p className="text-sm text-green-800">
+              You have reviewed and confirmed your onboarding data. You may now submit for approval.
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600">
+              Open the detailed review page, verify all information and uploaded files, then confirm your review before
+              submitting.
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap gap-3">
             <Link to="/review">
               <Button variant="outline" size="sm">
-                Detailed Review
+                {reviewComplete ? 'View Detailed Review' : 'Detailed Review'}
               </Button>
             </Link>
             <Button size="sm" loading={loading} disabled={!canSubmit} onClick={handleSubmit}>
@@ -72,8 +81,17 @@ export function WorkflowReviewPage() {
           {!dashboard?.agreementsAccepted && (
             <p className="mt-2 text-xs text-amber-700">Complete agreements (Step 4) before submitting.</p>
           )}
+          {dashboard?.agreementsAccepted && !reviewComplete && (
+            <p className="mt-2 text-xs text-amber-700">
+              Complete the detailed review and confirm your data before submitting.
+            </p>
+          )}
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         </Card>
+
+        <Link to="/dashboard">
+          <Button variant="ghost">← Back to Dashboard</Button>
+        </Link>
       </div>
     </WorkflowLayout>
   )

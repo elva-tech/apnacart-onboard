@@ -1,4 +1,5 @@
 import { forwardRef, type SelectHTMLAttributes } from 'react'
+import { useWorkflowFormLocked } from '../../context/WorkflowFormEditContext'
 
 type SelectOption = string | { value: string; label: string }
 
@@ -15,7 +16,8 @@ function normalizeOption(option: SelectOption): { value: string; label: string }
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, required, options, placeholder, className = '', id, ...props }, ref) => {
+  ({ label, error, required, options, placeholder, className = '', id, disabled, ...props }, ref) => {
+    const locked = useWorkflowFormLocked()
     const selectId = id || label.toLowerCase().replace(/\s+/g, '-')
 
     return (
@@ -27,9 +29,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-slate-100 ${
             error ? 'border-red-400 focus:ring-red-400' : 'border-slate-300'
           } ${className}`}
+          disabled={disabled || locked}
           {...props}
         >
           {placeholder && (

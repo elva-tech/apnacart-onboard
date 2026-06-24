@@ -1,4 +1,5 @@
 import { Button } from '../ui/Button'
+import { useAuth } from '../../context/AuthContext'
 
 interface WorkflowFormNavigationProps {
   onCancel: () => void
@@ -13,12 +14,14 @@ interface WorkflowFormNavigationProps {
 export function WorkflowFormNavigation({
   onCancel,
   cancelLabel = 'Back to section',
-  saveLabel = 'Save & Return to Dashboard',
+  saveLabel = 'Save & Proceed',
   saveLoading = false,
   saveDisabled = false,
   saveType = 'submit',
   saveError,
 }: WorkflowFormNavigationProps) {
+  const { canEdit } = useAuth()
+
   return (
     <div className="space-y-3 border-t border-slate-200 pt-6">
       {saveError && <p className="text-sm text-red-600">{saveError}</p>}
@@ -35,10 +38,10 @@ export function WorkflowFormNavigation({
         <Button
           type={saveType}
           loading={saveLoading}
-          disabled={saveDisabled || saveLoading}
+          disabled={saveDisabled || saveLoading || !canEdit}
           className="w-full sm:w-auto"
         >
-          {saveLoading ? 'Saving…' : saveLabel}
+          {saveLoading ? 'Saving…' : canEdit ? saveLabel : 'View only'}
         </Button>
       </div>
     </div>

@@ -35,6 +35,11 @@ var WORKFLOW_HEADERS = [
   'Agreement Accepted At',
   'Catalog Skipped',
   'Catalog Skipped At',
+  'Store Assets Skipped',
+  'Store Assets Skipped At',
+  'Merchant Agreement URL',
+  'Review Confirmed',
+  'Review Confirmed At',
 ];
 
 // ---------------------------------------------------------------------------
@@ -57,6 +62,11 @@ function setupWorkflowInfrastructure() {
 
   Logger.log('Step 3/5: catalog skip columns...');
   ensureCatalogSkipColumns();
+
+  Logger.log('Step 3b/5: store assets skip + agreement columns...');
+  ensureStoreAssetsSkipColumns();
+  ensureAgreementColumns();
+  ensureReviewColumns();
 
   Logger.log('Step 4/5: credential + session sheets...');
   getOrCreateCredentialsSheet();
@@ -95,6 +105,21 @@ function setupCatalogSkipColumns() {
 function ensureCatalogSkipColumns() {
   var sheet = getOrCreateOnboardingSheet().sheet;
   return verifyAndEnsureSheetHeaders(sheet, ['Catalog Skipped', 'Catalog Skipped At']);
+}
+
+function ensureStoreAssetsSkipColumns() {
+  var sheet = getOrCreateOnboardingSheet().sheet;
+  return verifyAndEnsureSheetHeaders(sheet, ['Store Assets Skipped', 'Store Assets Skipped At']);
+}
+
+function ensureAgreementColumns() {
+  var sheet = getOrCreateOnboardingSheet().sheet;
+  return verifyAndEnsureSheetHeaders(sheet, ['Merchant Agreement URL']);
+}
+
+function ensureReviewColumns() {
+  var sheet = getOrCreateOnboardingSheet().sheet;
+  return verifyAndEnsureSheetHeaders(sheet, ['Review Confirmed', 'Review Confirmed At']);
 }
 
 function getCredentialsHeaders() {
@@ -492,6 +517,8 @@ function handleGetDashboard(data) {
       overallProgress: progress.overall,
       agreementsAccepted: String(merchant.agreementsAccepted || '').toUpperCase() === 'TRUE',
       catalogSkipped: String(merchant.catalogSkipped || '').toUpperCase() === 'TRUE',
+      storeAssetsSkipped: String(merchant.storeAssetsSkipped || '').toUpperCase() === 'TRUE',
+      reviewConfirmed: String(merchant.reviewConfirmed || '').toUpperCase() === 'TRUE',
     },
     formData: merchantRowToFormData(merchant),
   });
@@ -560,23 +587,107 @@ function handleSkipCatalogStep(data) {
   });
 }
 
+function handleSkipStoreAssetsStep(data) {
+  var session = validateSessionToken(data.sessionToken);
+  if (session.role !== WORKFLOW_CONFIG.ROLE_CUSTOMER) throw new Error('Customer access only');
+  if (!session.merchantCode) throw new Error('No merchant linked to session');
+
+  var merchant = findMerchantByCode(session.merchantCode);
+  if (!merchant) throw new Error('Merchant not found');
+
+  if (!canEditWorkflow(getWorkflowStatusFromRow(merchant))) {
+    throw new Error('Submission is locked');
+  }
+
+  ensureStoreAssetsSkipColumns();
+
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ssXXX");
+  updateMerchantFields(session.merchantCode, {
+    'Store Assets Skipped': 'TRUE',
+    'Store Assets Skipped At': now,
+    'Workflow Status': WORKFLOW_CONFIG.STATUS_IN_PROGRESS,
+  });
+
+  var updated = findMerchantByCode(session.merchantCode);
+  var progress = calculateWorkflowProgress(session.merchantCode, updated);
+
+  return createJsonResponse({
+    success: true,
+    storeAssetsSkipped: true,
+    steps: progress.steps,
+    overallProgress: progress.overall,
+  });
+}
+
+function handleConfirmDataReview(data) {
+  var session = validateSessionToken(data.sessionToken);
+  if (session.role !== WORKFLOW_CONFIG.ROLE_CUSTOMER) throw new Error('Customer access only');
+  if (!session.merchantCode) throw new Error('No merchant linked to session');
+  if (!data.confirmed) throw new Error('Review confirmation is required');
+
+  var merchant = findMerchantByCode(session.merchantCode);
+  if (!merchant) throw new Error('Merchant not found');
+
+  if (!canEditWorkflow(getWorkflowStatusFromRow(merchant))) {
+    throw new Error('Submission is locked');
+  }
+
+  ensureReviewColumns();
+
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ssXXX");
+  updateMerchantFields(session.merchantCode, {
+    'Review Confirmed': 'TRUE',
+    'Review Confirmed At': now,
+    'Workflow Status': WORKFLOW_CONFIG.STATUS_IN_PROGRESS,
+  });
+
+  var updated = findMerchantByCode(session.merchantCode);
+  var progress = calculateWorkflowProgress(session.merchantCode, updated);
+
+  return createJsonResponse({
+    success: true,
+    reviewConfirmed: true,
+    steps: progress.steps,
+    overallProgress: progress.overall,
+  });
+}
+
 function handleSaveAgreements(data) {
   var session = validateSessionToken(data.sessionToken);
   if (!data.accepted) throw new Error('Agreements must be accepted');
 
   var merchant = findMerchantByCode(session.merchantCode);
+  if (!merchant) throw new Error('Merchant not found');
   if (!canEditWorkflow(getWorkflowStatusFromRow(merchant))) {
     throw new Error('Submission is locked');
   }
 
+  ensureAgreementColumns();
+
+  var agreementUrl = String(merchant.merchantAgreementUrl || '').trim();
+  if (data.merchantAgreement) {
+    var onboardingId = merchant.onboardingId;
+    var rootFolder = getOrCreateDriveFolder().folder;
+    var onboardingFolders = rootFolder.getFoldersByName(onboardingId);
+    var onboardingFolder = onboardingFolders.hasNext() ? onboardingFolders.next() : rootFolder.createFolder(onboardingId);
+    var agreementsFolder = getOrCreateSubfolder(onboardingFolder, 'Agreements');
+    agreementUrl = uploadFileToFolder(data.merchantAgreement, agreementsFolder, 'merchant-agreement');
+  }
+
+  if (!agreementUrl) {
+    throw new Error('Signed merchant agreement file is required');
+  }
+
   var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ssXXX");
-  updateMerchantFields(session.merchantCode, {
+  var updates = {
     'Agreements Accepted': 'TRUE',
     'Agreement Version': WORKFLOW_CONFIG.AGREEMENT_VERSION,
     'Agreement Accepted At': now,
+    'Merchant Agreement URL': agreementUrl,
     'Current Workflow Step': 5,
     'Workflow Status': WORKFLOW_CONFIG.STATUS_IN_PROGRESS,
-  });
+  };
+  updateMerchantFields(session.merchantCode, updates);
 
   var updated = findMerchantByCode(session.merchantCode);
   var progress = calculateWorkflowProgress(session.merchantCode, updated);
@@ -820,6 +931,7 @@ function isWorkflowReadOnly(status) {
   return (
     status === WORKFLOW_CONFIG.STATUS_SUBMITTED ||
     status === WORKFLOW_CONFIG.STATUS_UNDER_REVIEW ||
+    status === WORKFLOW_CONFIG.STATUS_RESUBMITTED ||
     status === WORKFLOW_CONFIG.STATUS_APPROVED ||
     status === WORKFLOW_CONFIG.STATUS_GO_LIVE
   );
@@ -829,8 +941,7 @@ function canEditWorkflow(status) {
   return (
     status === WORKFLOW_CONFIG.STATUS_DRAFT ||
     status === WORKFLOW_CONFIG.STATUS_IN_PROGRESS ||
-    status === WORKFLOW_CONFIG.STATUS_REJECTED ||
-    status === WORKFLOW_CONFIG.STATUS_RESUBMITTED
+    status === WORKFLOW_CONFIG.STATUS_REJECTED
   );
 }
 
@@ -1165,6 +1276,9 @@ function merchantRowToFormData(merchant) {
     businessRegistrationUrl: String(val('Business Registration URL') || ''),
     storeFrontPhotoUrl: String(val('Store Front Photo URL') || ''),
     storeInteriorPhotoUrl: String(val('Store Interior Photo URL') || ''),
+    merchantAgreementUrl: String(val('Merchant Agreement URL') || ''),
+    storeAssetsSkipped: String(val('Store Assets Skipped')).toUpperCase() === 'TRUE',
+    reviewConfirmed: String(val('Review Confirmed')).toUpperCase() === 'TRUE',
     catalogSkipped: String(val('Catalog Skipped')).toUpperCase() === 'TRUE',
     agreementsAccepted: String(val('Agreements Accepted')).toUpperCase() === 'TRUE',
     adminComments: String(val('Admin Comments') || ''),
@@ -1187,8 +1301,12 @@ function calculateWorkflowProgress(merchantCode, merchant) {
     return total === 0 ? 0 : Math.round((done / total) * 100);
   }
 
-  var step1Fields = [
+  var step1CoreFields = [
     'Store Name',
+    'Business Name',
+    'Owner Name',
+    'Primary Phone',
+    'Email Address',
     'Store Address',
     'City',
     'State',
@@ -1196,22 +1314,33 @@ function calculateWorkflowProgress(merchantCode, merchant) {
     'Latitude',
     'Longitude',
     'Delivery Radius',
-    'Monday Open',
+    'Minimum Order Amount',
+    'Delivery Charge',
     'Logo URL',
-    'Store Front Photo URL',
+    'Brand Color',
   ];
-  var step1Done = step1Fields.filter(has).length;
+  var coreDone = step1CoreFields.filter(has).length;
+  var storeAssetsSkipped = String(merchant.storeAssetsSkipped || '').toUpperCase() === 'TRUE';
+  var assetsDone =
+    storeAssetsSkipped || has('Store Front Photo URL') || has('Store Interior Photo URL');
+  var step1Total = step1CoreFields.length + 1;
+  var step1Done = coreDone + (assetsDone ? 1 : 0);
 
   var step2Fields = [
-    'Business Name',
-    'Owner Name',
-    'GST Number',
     'Admin Name',
-    'GST Certificate URL',
+    'Admin Email',
+    'Admin Phone',
+    'WhatsApp Number',
+    'Support Phone',
+    'Support Email',
+    'Delivery Model',
+    'Estimated Delivery Time',
     'PAN Card URL',
     'Account Holder Name',
+    'Bank Name',
+    'Account Number',
     'IFSC Code',
-    'WhatsApp Number',
+    'UPI ID',
   ];
   var step2Done = step2Fields.filter(has).length;
 
@@ -1232,6 +1361,7 @@ function calculateWorkflowProgress(merchantCode, merchant) {
       : pct(productsWithImages, products.length);
 
   var step4Progress = String(merchant.agreementsAccepted || '').toUpperCase() === 'TRUE' ? 100 : 0;
+  var reviewConfirmed = String(merchant.reviewConfirmed || '').toUpperCase() === 'TRUE';
 
   var step5Progress = 0;
   var status = getWorkflowStatusFromRow(merchant);
@@ -1243,12 +1373,12 @@ function calculateWorkflowProgress(merchantCode, merchant) {
     status === WORKFLOW_CONFIG.STATUS_GO_LIVE
   ) {
     step5Progress = 100;
-  } else if (step1Done >= 8 && step2Done >= 7 && (step3Progress >= 80 || catalogSkipped) && step4Progress === 100) {
-    step5Progress = 50;
+  } else if (step1Done >= 16 && step2Done >= 12 && (step3Progress >= 80 || catalogSkipped) && step4Progress === 100) {
+    step5Progress = reviewConfirmed ? 100 : 50;
   }
 
   var steps = [
-    { step: 1, title: 'Store Information', progress: pct(step1Done, step1Fields.length), complete: pct(step1Done, step1Fields.length) === 100 },
+    { step: 1, title: 'Store Information', progress: pct(step1Done, step1Total), complete: pct(step1Done, step1Total) === 100 },
     { step: 2, title: 'Business & Compliance', progress: pct(step2Done, step2Fields.length), complete: pct(step2Done, step2Fields.length) === 100 },
     { step: 3, title: 'Product Catalog', progress: step3Progress, complete: step3Progress === 100 },
     { step: 4, title: 'Agreements', progress: step4Progress, complete: step4Progress === 100 },
@@ -1286,6 +1416,10 @@ function handleWorkflowAction(action, data) {
       return handleSaveAgreements(data);
     case 'skipCatalogStep':
       return handleSkipCatalogStep(data);
+    case 'skipStoreAssetsStep':
+      return handleSkipStoreAssetsStep(data);
+    case 'confirmDataReview':
+      return handleConfirmDataReview(data);
     case 'submitWorkflow':
       return handleSubmitWorkflow(data);
     case 'adminListMerchants':

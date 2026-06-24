@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { SESSION_STORAGE_KEY } from '../constants/workflow'
+import { SESSION_STORAGE_KEY, isWorkflowReadOnlyStatus } from '../constants/workflow'
 import {
   adminLogin as apiAdminLogin,
   getDashboard,
@@ -18,8 +18,7 @@ import {
   sessionToAuth,
 } from '../api/workflowApi'
 import type { AuthSession, DashboardData } from '../types/workflow'
-import type { OnboardingFormData } from '../types/onboarding'
-import { normalizeTimingsFromApi } from '../utils/timings'
+import { mergeApiFormData } from '../utils/onboarding'
 import { useOnboarding } from './OnboardingContext'
 
 interface AuthContextValue {
@@ -80,10 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDashboard(result.dashboard)
     if (result.formData) {
       const formData = result.formData as Record<string, unknown>
-      updateFormData({
-        ...(formData as Partial<OnboardingFormData>),
-        timings: normalizeTimingsFromApi(formData),
-      })
+      updateFormData(mergeApiFormData(formData))
     }
     setSession((prev) =>
       prev
@@ -151,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           storeCode: result.storeCode,
           onboardingId: result.onboardingId,
           workflowStatus: result.workflowStatus,
-          isReadOnly: ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'GO_LIVE'].includes(result.workflowStatus),
+          isReadOnly: isWorkflowReadOnlyStatus(result.workflowStatus),
         }),
       )
     },
@@ -188,8 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             onboardingId: result.onboardingId,
             workflowStatus: result.workflowStatus,
             isReadOnly:
-              result.role === 'CUSTOMER' &&
-              ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'GO_LIVE'].includes(result.workflowStatus),
+              result.role === 'CUSTOMER' && isWorkflowReadOnlyStatus(result.workflowStatus),
           }),
         )
         return result.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER'
@@ -238,8 +233,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveSession(null)
   }, [session])
 
-  const isReadOnly = session?.isReadOnly ?? false
-  const canEdit = !isReadOnly && session?.role === 'CUSTOMER'
+  const isReadOnly = dashboard?.isReadOnly ?? session?.isReadOnly ?? false
+  const canEdit =
+    session?.role === 'CUSTOMER' && (dashboard?.canEdit ?? !isReadOnly)
 
   const value = useMemo(
     () => ({

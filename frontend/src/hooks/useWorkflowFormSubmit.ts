@@ -8,25 +8,26 @@ export function useWorkflowFormSubmit(workflowStepId: number) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const { updateFormData } = useOnboarding()
-  const { saveStep } = useStepSave()
-  const { returnToDashboard, returnToHub } = useWorkflowFormActions(workflowStepId)
+  const { saveStep, canEdit } = useStepSave()
+  const { returnToHub } = useWorkflowFormActions(workflowStepId)
 
   const submitAndReturn = useCallback(
     async (partial: Partial<OnboardingFormData>) => {
+      if (!canEdit) return
       setSaving(true)
       setSaveError(null)
       try {
         updateFormData(partial)
         await saveStep(partial, workflowStepId)
-        returnToDashboard()
+        returnToHub()
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
       } finally {
         setSaving(false)
       }
     },
-    [updateFormData, saveStep, workflowStepId, returnToDashboard],
+    [canEdit, updateFormData, saveStep, workflowStepId, returnToHub],
   )
 
-  return { saving, saveError, submitAndReturn, returnToHub }
+  return { saving, saveError, submitAndReturn, returnToHub, canEdit }
 }

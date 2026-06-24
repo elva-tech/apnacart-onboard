@@ -1,95 +1,58 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { submitOnboarding } from '../api/submitOnboarding'
-import { submitWorkflow } from '../api/workflowApi'
-import { DAYS_OF_WEEK } from '../types/onboarding'
+import { confirmDataReview } from '../api/workflowApi'
+import { formatCurrency } from '../utils/onboarding'
+import { renderReviewFileValue } from '../utils/reviewDisplay'
 import { useOnboarding } from '../context/OnboardingContext'
 import { useAuth } from '../context/AuthContext'
-import { formatCurrency, formatDayTiming } from '../utils/onboarding'
 import { ReviewItem, ReviewSection } from '../components/ReviewSection'
 import { Card } from '../components/ui/Card'
-import { WizardLayout } from '../components/layout/WizardLayout'
-import { WizardNavigation } from '../components/layout/WizardNavigation'
+import { Button } from '../components/ui/Button'
+import { Checkbox } from '../components/ui/Checkbox'
+import { WorkflowLayout } from '../components/workflow/WorkflowLayout'
 
 export function ReviewPage() {
   const navigate = useNavigate()
-  const { state, setCurrentStep, markSubmitted } = useOnboarding()
+  const { state } = useOnboarding()
   const { session, canEdit, refreshDashboard } = useAuth()
   const { formData } = state
+  const [confirmed, setConfirmed] = useState(Boolean(formData.reviewConfirmed))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const goBack = () => {
-    setCurrentStep(10)
-    navigate('/assets')
-  }
-
   const handleEdit = (path: string) => {
-    const stepMap: Record<string, number> = {
-      '/business': 1,
-      '/location': 2,
-      '/delivery': 3,
-      '/timings': 4,
-      '/branding': 5,
-      '/store-admin': 6,
-      '/operations': 7,
-      '/documents': 8,
-      '/banking': 9,
-      '/assets': 10,
-    }
-    setCurrentStep(stepMap[path] ?? 1)
     navigate(path)
   }
 
-  const handleSubmit = async () => {
-    if (!canEdit) return
+  const handleSaveAndProceed = async () => {
+    if (!session?.sessionToken || !confirmed) return
     setLoading(true)
     setError(null)
-
     try {
-      if (session?.sessionToken) {
-        const result = await submitWorkflow(session.sessionToken, formData)
-        markSubmitted({
-          onboardingId: result.onboardingId,
-          merchantCode: result.merchantCode,
-          storeCode: result.storeCode,
-        })
+      if (!formData.reviewConfirmed) {
+        await confirmDataReview(session.sessionToken)
         await refreshDashboard()
-      } else {
-        const result = await submitOnboarding(formData)
-        markSubmitted({
-          onboardingId: result.onboardingId!,
-          merchantCode: result.merchantCode,
-          storeCode: result.storeCode,
-        })
       }
-      navigate('/success')
+      navigate('/workflow/review')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Submission failed. Please try again.')
+      setError(err instanceof Error ? err.message : 'Failed to save review confirmation')
     } finally {
       setLoading(false)
     }
   }
 
-  const filePreview = (file: { dataUrl: string; name: string } | null, className: string) =>
-    file ? (
-      <img src={file.dataUrl} alt={file.name} className={className} />
-    ) : (
-      '—'
-    )
-
   return (
-    <WizardLayout
-      currentStep={11}
-      title="Review & Submit"
-      subtitle="Please review all information before submitting your onboarding."
+    <WorkflowLayout
+      currentStep={5}
+      title="Review Your Information"
+      subtitle="Verify all details below. Confirm when you are satisfied everything is correct."
     >
       <div className="space-y-4">
         <ReviewSection title="Business Information" stepPath="/business" onEdit={handleEdit}>
           <ReviewItem label="Store Name" value={formData.storeName} />
           <ReviewItem label="Business Name" value={formData.businessName} />
           <ReviewItem label="Owner Name" value={formData.ownerName} />
-          <ReviewItem label="GST Number" value={formData.gstNumber} />
+          <ReviewItem label="GST Number" value={formData.gstNumber || '—'} />
           <ReviewItem label="PAN Number" value={formData.panNumber || '—'} />
           <ReviewItem label="Primary Phone" value={formData.primaryPhone} />
           <ReviewItem label="Secondary Phone" value={formData.secondaryPhone || '—'} />
@@ -124,28 +87,18 @@ export function ReviewPage() {
           <ReviewItem label="Online Payment" value={formData.onlinePaymentEnabled ? 'Yes' : 'No'} />
         </ReviewSection>
 
-        <ReviewSection title="Store Timings" stepPath="/timings" onEdit={handleEdit}>
-          {DAYS_OF_WEEK.map((day) => {
-            const timing = formData.timings[day]
-            const label = day.charAt(0).toUpperCase() + day.slice(1)
-            return (
-              <ReviewItem
-                key={day}
-                label={label}
-                value={formatDayTiming(timing.openTime, timing.closeTime, timing.closed)}
-              />
-            )
-          })}
-        </ReviewSection>
-
         <ReviewSection title="Branding" stepPath="/branding" onEdit={handleEdit}>
           <ReviewItem
             label="Store Logo"
-            value={filePreview(formData.logo, 'mt-1 h-12 w-12 rounded border object-cover')}
+            value={renderReviewFileValue(formData.logo, formData.logoUrl, {
+              imageClassName: 'mt-1 h-12 w-12 rounded border object-cover',
+            })}
           />
           <ReviewItem
             label="Store Banner"
-            value={filePreview(formData.banner, 'mt-1 h-16 w-full max-w-xs rounded border object-cover')}
+            value={renderReviewFileValue(formData.banner, formData.bannerUrl, {
+              imageClassName: 'mt-1 h-16 w-full max-w-xs rounded border object-cover',
+            })}
           />
           <ReviewItem label="Description" value={formData.storeDescription || '—'} />
           <ReviewItem
@@ -177,12 +130,18 @@ export function ReviewPage() {
         </ReviewSection>
 
         <ReviewSection title="Legal Documents" stepPath="/documents" onEdit={handleEdit}>
-          <ReviewItem label="GST Certificate" value={formData.gstCertificate?.name || '—'} />
-          <ReviewItem label="PAN Card" value={formData.panCard?.name || '—'} />
-          <ReviewItem label="FSSAI License" value={formData.fssaiLicense?.name || '—'} />
+          <ReviewItem
+            label="GST Certificate"
+            value={renderReviewFileValue(formData.gstCertificate, formData.gstCertificateUrl)}
+          />
+          <ReviewItem label="PAN Card" value={renderReviewFileValue(formData.panCard, formData.panCardUrl)} />
+          <ReviewItem
+            label="FSSAI License"
+            value={renderReviewFileValue(formData.fssaiLicense, formData.fssaiLicenseUrl)}
+          />
           <ReviewItem
             label="Business Registration"
-            value={formData.businessRegistration?.name || '—'}
+            value={renderReviewFileValue(formData.businessRegistration, formData.businessRegistrationUrl)}
           />
         </ReviewSection>
 
@@ -195,14 +154,24 @@ export function ReviewPage() {
         </ReviewSection>
 
         <ReviewSection title="Store Assets" stepPath="/assets" onEdit={handleEdit}>
-          <ReviewItem
-            label="Store Front Photo"
-            value={filePreview(formData.storeFrontPhoto, 'mt-1 h-16 w-full max-w-xs rounded border object-cover')}
-          />
-          <ReviewItem
-            label="Store Interior Photo"
-            value={filePreview(formData.storeInteriorPhoto, 'mt-1 h-16 w-full max-w-xs rounded border object-cover')}
-          />
+          {formData.storeAssetsSkipped ? (
+            <ReviewItem label="Status" value="Skipped — add photos later in admin portal" />
+          ) : (
+            <>
+              <ReviewItem
+                label="Store Front Photo"
+                value={renderReviewFileValue(formData.storeFrontPhoto, formData.storeFrontPhotoUrl, {
+                  imageClassName: 'mt-1 h-16 w-full max-w-xs rounded border object-cover',
+                })}
+              />
+              <ReviewItem
+                label="Store Interior Photo"
+                value={renderReviewFileValue(formData.storeInteriorPhoto, formData.storeInteriorPhotoUrl, {
+                  imageClassName: 'mt-1 h-16 w-full max-w-xs rounded border object-cover',
+                })}
+              />
+            </>
+          )}
         </ReviewSection>
 
         {error && (
@@ -211,16 +180,34 @@ export function ReviewPage() {
           </Card>
         )}
 
+        {formData.reviewConfirmed && (
+          <Card className="border-green-200 bg-green-50">
+            <p className="text-sm font-medium text-green-900">Review already confirmed</p>
+            <p className="mt-1 text-sm text-green-800">You can return to the summary to submit your onboarding.</p>
+          </Card>
+        )}
+
         <Card>
-          <WizardNavigation
-            onPrevious={goBack}
-            onNext={handleSubmit}
-            nextLabel="Submit Onboarding"
-            nextLoading={loading}
-            nextDisabled={!canEdit}
+          <Checkbox
+            label="I have reviewed all information above and confirm it is accurate. I am responsible for the data entered."
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+            disabled={!canEdit}
           />
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-between">
+            <Button variant="outline" onClick={() => navigate('/workflow/review')}>
+              Back to Review Summary
+            </Button>
+            <Button
+              onClick={() => void handleSaveAndProceed()}
+              loading={loading}
+              disabled={!confirmed || !canEdit}
+            >
+              Save & Proceed
+            </Button>
+          </div>
         </Card>
       </div>
-    </WizardLayout>
+    </WorkflowLayout>
   )
 }

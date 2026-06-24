@@ -86,7 +86,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         onboardingId: result.onboardingId ?? null,
         merchantCode: result.merchantCode ?? null,
         storeCode: result.storeCode ?? null,
-        currentStep: 12,
+        currentStep: 11,
       }))
     },
     [],

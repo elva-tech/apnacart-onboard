@@ -15,7 +15,6 @@ import { WelcomePage } from './pages/WelcomePage'
 import { BusinessInfoPage } from './pages/BusinessInfoPage'
 import { StoreLocationPage } from './pages/StoreLocationPage'
 import { DeliveryConfigPage } from './pages/DeliveryConfigPage'
-import { StoreTimingsPage } from './pages/StoreTimingsPage'
 import { BrandingPage } from './pages/BrandingPage'
 import { AdminAccountPage } from './pages/AdminAccountPage'
 import { MerchantOperationsPage } from './pages/MerchantOperationsPage'
@@ -60,7 +59,7 @@ function CustomerFormRoutes() {
         <Route path="/business" element={<BusinessInfoPage />} />
         <Route path="/location" element={<StoreLocationPage />} />
         <Route path="/delivery" element={<DeliveryConfigPage />} />
-        <Route path="/timings" element={<StoreTimingsPage />} />
+        <Route path="/timings" element={<Navigate to="/workflow/store" replace />} />
         <Route path="/branding" element={<BrandingPage />} />
         <Route path="/store-admin" element={<AdminAccountPage />} />
         <Route path="/operations" element={<MerchantOperationsPage />} />

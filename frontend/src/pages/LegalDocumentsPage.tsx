@@ -1,9 +1,10 @@
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE_BYTES } from '../constants/phase2'
-import { legalDocumentsSchema, type LegalDocumentsForm } from '../schemas/onboarding'
+import { createLegalDocumentsSchema, type LegalDocumentsForm } from '../schemas/onboarding'
 import { useOnboarding } from '../context/OnboardingContext'
 import { useWorkflowFormSubmit } from '../hooks/useWorkflowFormSubmit'
+import { pickDirtyFileFields } from '../utils/onboarding'
 import { FileUpload } from '../components/FileUpload'
 import { Card } from '../components/ui/Card'
 import { WorkflowFormLayout } from '../components/workflow/WorkflowFormLayout'
@@ -18,9 +19,13 @@ export function LegalDocumentsPage() {
   const {
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<LegalDocumentsForm>({
-    resolver: zodResolver(legalDocumentsSchema),
+    resolver: zodResolver(
+      createLegalDocumentsSchema({
+        panCardUrl: state.formData.panCardUrl,
+      }),
+    ),
     defaultValues: {
       gstCertificate: state.formData.gstCertificate,
       panCard: state.formData.panCard,
@@ -29,7 +34,16 @@ export function LegalDocumentsPage() {
     },
   })
 
-  const onSubmit = (data: LegalDocumentsForm) => submitAndReturn(data)
+  const onSubmit = (data: LegalDocumentsForm) => {
+    submitAndReturn(
+      pickDirtyFileFields({
+        ...(dirtyFields.gstCertificate ? { gstCertificate: data.gstCertificate } : {}),
+        ...(dirtyFields.panCard ? { panCard: data.panCard } : {}),
+        ...(dirtyFields.fssaiLicense ? { fssaiLicense: data.fssaiLicense } : {}),
+        ...(dirtyFields.businessRegistration ? { businessRegistration: data.businessRegistration } : {}),
+      }),
+    )
+  }
 
   return (
     <WorkflowFormLayout
@@ -45,9 +59,9 @@ export function LegalDocumentsPage() {
             render={({ field }) => (
               <FileUpload
                 label="GST Certificate"
-                required
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.gstCertificateUrl}
                 error={errors.gstCertificate?.message as string | undefined}
                 allowedTypes={ALLOWED_DOCUMENT_TYPES}
                 maxSizeBytes={MAX_DOCUMENT_SIZE_BYTES}
@@ -65,6 +79,7 @@ export function LegalDocumentsPage() {
                 required
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.panCardUrl}
                 error={errors.panCard?.message as string | undefined}
                 allowedTypes={ALLOWED_DOCUMENT_TYPES}
                 maxSizeBytes={MAX_DOCUMENT_SIZE_BYTES}
@@ -81,6 +96,7 @@ export function LegalDocumentsPage() {
                 label="FSSAI License"
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.fssaiLicenseUrl}
                 error={errors.fssaiLicense?.message as string | undefined}
                 allowedTypes={ALLOWED_DOCUMENT_TYPES}
                 maxSizeBytes={MAX_DOCUMENT_SIZE_BYTES}
@@ -97,6 +113,7 @@ export function LegalDocumentsPage() {
                 label="Business Registration Certificate"
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.businessRegistrationUrl}
                 error={errors.businessRegistration?.message as string | undefined}
                 allowedTypes={ALLOWED_DOCUMENT_TYPES}
                 maxSizeBytes={MAX_DOCUMENT_SIZE_BYTES}

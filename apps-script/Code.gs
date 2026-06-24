@@ -37,6 +37,8 @@ function doGet(e) {
       'POST saveWorkflowStep',
       'POST submitWorkflow',
       'POST skipCatalogStep',
+      'POST skipStoreAssetsStep',
+      'POST confirmDataReview',
       'POST adminListMerchants',
       'POST adminReviewMerchant',
     ],
@@ -215,7 +217,6 @@ function validateSubmissionData(data) {
     'storeName',
     'businessName',
     'ownerName',
-    'gstNumber',
     'primaryPhone',
     'emailAddress',
     'storeAddress',
@@ -240,10 +241,6 @@ function validateSubmissionData(data) {
 
   if (!data.logo || !data.logo.base64) {
     throw new Error('Store logo is required');
-  }
-
-  if (!data.gstCertificate || !data.gstCertificate.base64) {
-    throw new Error('GST certificate is required');
   }
 
   if (!data.panCard || !data.panCard.base64) {
@@ -413,6 +410,18 @@ function appendOnboardingRow(sheet, valuesByHeader) {
   sheet.appendRow(row);
 }
 
+function removeExistingFilesByBaseName(folder, baseName) {
+  var prefix = String(baseName).toLowerCase() + '.';
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    var file = files.next();
+    var name = file.getName().toLowerCase();
+    if (name.indexOf(prefix) === 0) {
+      file.setTrashed(true);
+    }
+  }
+}
+
 function uploadFileToFolder(fileData, folder, baseName) {
   if (!fileData || !fileData.base64) {
     return '';
@@ -420,6 +429,7 @@ function uploadFileToFolder(fileData, folder, baseName) {
 
   const extension = getExtensionFromMimeType(fileData.type, fileData.name);
   const fileName = baseName + extension;
+  removeExistingFilesByBaseName(folder, baseName);
   const bytes = Utilities.base64Decode(fileData.base64);
   const blob = Utilities.newBlob(bytes, fileData.type, fileName);
   const file = folder.createFile(blob);
@@ -509,7 +519,6 @@ function calculateCompletionPercentage(data) {
     data.storeName &&
     data.businessName &&
     data.ownerName &&
-    data.gstNumber &&
     data.primaryPhone &&
     data.emailAddress;
   if (businessComplete) completed += 1;
@@ -522,8 +531,6 @@ function calculateCompletionPercentage(data) {
   if (brandingComplete) completed += 1;
 
   const documentsComplete =
-    data.gstCertificate &&
-    data.gstCertificate.base64 &&
     data.panCard &&
     data.panCard.base64;
   if (documentsComplete) completed += 1;
@@ -694,6 +701,11 @@ function getSheetHeaders() {
     'Agreement Accepted At',
     'Catalog Skipped',
     'Catalog Skipped At',
+    'Store Assets Skipped',
+    'Store Assets Skipped At',
+    'Merchant Agreement URL',
+    'Review Confirmed',
+    'Review Confirmed At',
   ];
 }
 

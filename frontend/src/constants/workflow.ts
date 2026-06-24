@@ -17,8 +17,8 @@ export const WORKFLOW_STEPS = [
     path: '/workflow/store',
     title: 'Store Information',
     shortTitle: 'Store',
-    description: 'Location, delivery, timings, branding, and store photos',
-    subRoutes: ['/business', '/location', '/delivery', '/timings', '/branding', '/assets'],
+    description: 'Location, delivery, branding, and store photos',
+    subRoutes: ['/business', '/location', '/delivery', '/branding', '/assets'],
   },
   {
     id: 2,
@@ -59,7 +59,6 @@ export const ROUTE_TO_WORKFLOW_STEP: Record<string, number> = {
   '/business': 1,
   '/location': 1,
   '/delivery': 1,
-  '/timings': 1,
   '/branding': 1,
   '/assets': 1,
   '/workflow/compliance': 2,
@@ -97,6 +96,14 @@ export function isWorkflowStepActive(step: (typeof WORKFLOW_STEPS)[number], path
 
 export const AGREEMENT_VERSION = '1.0'
 
-export const READ_ONLY_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'GO_LIVE'] as const
+export const READ_ONLY_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'RESUBMITTED', 'APPROVED', 'GO_LIVE'] as const
 
-export const EDITABLE_STATUSES = ['DRAFT', 'IN_PROGRESS', 'REJECTED', 'RESUBMITTED'] as const
+export const EDITABLE_STATUSES = ['DRAFT', 'IN_PROGRESS', 'REJECTED'] as const
+
+export function isWorkflowReadOnlyStatus(status: string): boolean {
+  return (READ_ONLY_STATUSES as readonly string[]).includes(status)
+}
+
+export function isWorkflowEditableStatus(status: string): boolean {
+  return (EDITABLE_STATUSES as readonly string[]).includes(status)
+}

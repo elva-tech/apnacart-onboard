@@ -79,6 +79,20 @@ export interface OnboardingFormData {
 
   storeFrontPhoto: StoredFile | null
   storeInteriorPhoto: StoredFile | null
+  merchantAgreement: StoredFile | null
+
+  storeAssetsSkipped?: boolean
+  reviewConfirmed?: boolean
+
+  logoUrl?: string
+  bannerUrl?: string
+  gstCertificateUrl?: string
+  panCardUrl?: string
+  fssaiLicenseUrl?: string
+  businessRegistrationUrl?: string
+  storeFrontPhotoUrl?: string
+  storeInteriorPhotoUrl?: string
+  merchantAgreementUrl?: string
 }
 
 export interface OnboardingState {

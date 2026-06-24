@@ -6,18 +6,18 @@ import { WizardLayout } from '../components/layout/WizardLayout'
 
 export function SuccessPage() {
   const navigate = useNavigate()
-  const { state, resetOnboarding } = useOnboarding()
+  const { state } = useOnboarding()
   const { onboardingId, merchantCode, storeCode } = state
 
   if (!onboardingId) {
     return (
-      <WizardLayout currentStep={12} title="Submission Not Found" showProgress={false}>
+      <WizardLayout currentStep={11} title="Submission Not Found" showProgress={false}>
         <Card>
           <p className="text-sm text-slate-600">
             No onboarding submission was found. Please complete the onboarding process first.
           </p>
-          <Button className="mt-4" onClick={() => navigate('/')}>
-            Go to Welcome
+          <Button className="mt-4" onClick={() => navigate('/dashboard')}>
+            Go to Dashboard
           </Button>
         </Card>
       </WizardLayout>
@@ -25,7 +25,7 @@ export function SuccessPage() {
   }
 
   return (
-    <WizardLayout currentStep={12} title="Onboarding Submitted Successfully" showProgress={false}>
+    <WizardLayout currentStep={11} title="Onboarding Submitted Successfully" showProgress={false}>
       <Card className="text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
           <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,8 +34,12 @@ export function SuccessPage() {
         </div>
 
         <p className="text-sm text-slate-600">
-          Thank you for completing your merchant onboarding. Our team will review your information and
-          configure your store for go-live.
+          Thank you for submitting your merchant onboarding application. Our team will review your information and
+          contact you with updates on the next steps.
+        </p>
+        <p className="mt-3 text-sm text-slate-600">
+          Once your application is approved, you will be allowed to go live and access the ApnaCart merchant portal
+          and related services.
         </p>
 
         <div className="my-6 space-y-3">
@@ -58,21 +62,13 @@ export function SuccessPage() {
         </div>
 
         <p className="text-sm text-slate-500">
-          Please save these reference codes. You will be contacted once your store is ready for activation.
+          Please save these reference codes for your records. You will receive communication from our team regarding
+          further processing.
         </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Button onClick={() => navigate('/catalog')}>Set Up Product Catalog</Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              resetOnboarding()
-              navigate('/')
-            }}
-          >
-            Start New Onboarding
-          </Button>
-        </div>
+        <Button className="mt-6" onClick={() => navigate('/dashboard')}>
+          Back to Dashboard
+        </Button>
       </Card>
     </WizardLayout>
   )

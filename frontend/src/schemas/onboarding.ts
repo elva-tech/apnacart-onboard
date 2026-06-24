@@ -25,11 +25,15 @@ export const optionalIndianMobileSchema = z
 
 export const emailSchema = z.string().min(1, 'Email is required').email('Enter a valid email address')
 
-export const gstSchema = z
+export const optionalGstSchema = z
   .string()
-  .min(1, 'GST number is required')
   .transform((val) => val.toUpperCase().replace(/\s/g, ''))
-  .refine((val) => GST_REGEX.test(val), 'Enter a valid 15-character GST number')
+  .refine(
+    (val) => val === '' || GST_REGEX.test(val),
+    'Enter a valid 15-character GST number',
+  )
+
+export const gstSchema = optionalGstSchema
 
 export const optionalPanSchema = z
   .string()
@@ -42,7 +46,7 @@ export const businessInfoSchema = z.object({
   storeName: z.string().min(1, 'Store name is required'),
   businessName: z.string().min(1, 'Business name is required'),
   ownerName: z.string().min(1, 'Owner name is required'),
-  gstNumber: gstSchema,
+  gstNumber: optionalGstSchema,
   panNumber: optionalPanSchema,
   primaryPhone: indianMobileSchema,
   secondaryPhone: optionalIndianMobileSchema,
@@ -143,6 +147,21 @@ export const brandingSchema = z
     }
   })
 
+export function createBrandingSchema(existing?: { logoUrl?: string }) {
+  return z
+    .object({
+      storeDescription: z.string(),
+      brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Select a valid brand color'),
+      logo: nullableImageFileSchema,
+      banner: nullableImageFileSchema,
+    })
+    .superRefine((data, ctx) => {
+      if (!data.logo && !existing?.logoUrl?.trim()) {
+        ctx.addIssue({ code: 'custom', message: 'Store logo is required', path: ['logo'] })
+      }
+    })
+}
+
 export const adminAccountSchema = z.object({
   adminName: z.string().min(1, 'Admin name is required'),
   adminEmail: emailSchema,
@@ -175,13 +194,25 @@ export const legalDocumentsSchema = z
     businessRegistration: nullableStoredFileSchema,
   })
   .superRefine((data, ctx) => {
-    if (!data.gstCertificate) {
-      ctx.addIssue({ code: 'custom', message: 'GST certificate is required', path: ['gstCertificate'] })
-    }
     if (!data.panCard) {
       ctx.addIssue({ code: 'custom', message: 'PAN card is required', path: ['panCard'] })
     }
   })
+
+export function createLegalDocumentsSchema(existing?: { panCardUrl?: string }) {
+  return z
+    .object({
+      gstCertificate: nullableStoredFileSchema,
+      panCard: nullableStoredFileSchema,
+      fssaiLicense: nullableStoredFileSchema,
+      businessRegistration: nullableStoredFileSchema,
+    })
+    .superRefine((data, ctx) => {
+      if (!data.panCard && !existing?.panCardUrl?.trim()) {
+        ctx.addIssue({ code: 'custom', message: 'PAN card is required', path: ['panCard'] })
+      }
+    })
+}
 
 export const bankingInformationSchema = z.object({
   accountHolderName: z.string().min(1, 'Account holder name is required'),
@@ -201,27 +232,17 @@ export const bankingInformationSchema = z.object({
     .refine((val) => UPI_REGEX.test(val), 'Enter a valid UPI ID (e.g. name@bank)'),
 })
 
-export const storeAssetsSchema = z
-  .object({
-    storeFrontPhoto: nullableStoredFileSchema,
-    storeInteriorPhoto: nullableStoredFileSchema,
-  })
-  .superRefine((data, ctx) => {
-    if (!data.storeFrontPhoto) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Store front photo is required',
-        path: ['storeFrontPhoto'],
-      })
-    }
-    if (!data.storeInteriorPhoto) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Store interior photo is required',
-        path: ['storeInteriorPhoto'],
-      })
-    }
-  })
+export const storeAssetsSchema = z.object({
+  storeFrontPhoto: nullableStoredFileSchema,
+  storeInteriorPhoto: nullableStoredFileSchema,
+})
+
+export function createStoreAssetsSchema(_existing?: {
+  storeFrontPhotoUrl?: string
+  storeInteriorPhotoUrl?: string
+}) {
+  return storeAssetsSchema
+}
 
 export type BusinessInfoForm = z.infer<typeof businessInfoSchema>
 export type StoreLocationForm = z.infer<typeof storeLocationSchema>

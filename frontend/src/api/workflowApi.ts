@@ -1,5 +1,5 @@
 import { buildSubmitPayload } from './submitOnboarding'
-import type { OnboardingFormData } from '../types/onboarding'
+import type { OnboardingFormData, SubmitFilePayload } from '../types/onboarding'
 import type { AuthSession, DashboardResponse } from '../types/workflow'
 
 const API_URL = import.meta.env.VITE_APPS_SCRIPT_URL || '/api/onboarding'
@@ -86,11 +86,27 @@ export async function saveWorkflowStep(
   }>('saveWorkflowStep', { sessionToken, step, data })
 }
 
-export async function saveAgreements(sessionToken: string) {
+export async function confirmDataReview(sessionToken: string) {
+  return workflowRequest<{
+    reviewConfirmed: boolean
+    steps: DashboardResponse['dashboard']['steps']
+    overallProgress: number
+  }>('confirmDataReview', { sessionToken, confirmed: true })
+}
+
+export async function saveAgreements(sessionToken: string, merchantAgreement?: SubmitFilePayload | null) {
   return workflowRequest<{ steps: DashboardResponse['dashboard']['steps']; overallProgress: number }>(
     'saveAgreements',
-    { sessionToken, accepted: true },
+    { sessionToken, accepted: true, merchantAgreement: merchantAgreement || null },
   )
+}
+
+export async function skipStoreAssetsStep(sessionToken: string) {
+  return workflowRequest<{
+    storeAssetsSkipped: boolean
+    steps: DashboardResponse['dashboard']['steps']
+    overallProgress: number
+  }>('skipStoreAssetsStep', { sessionToken })
 }
 
 export async function skipCatalogStep(sessionToken: string) {
@@ -168,6 +184,9 @@ function emptyForm(): OnboardingFormData {
     upiId: '',
     storeFrontPhoto: null,
     storeInteriorPhoto: null,
+    merchantAgreement: null,
+    storeAssetsSkipped: false,
+    reviewConfirmed: false,
   }
 }
 

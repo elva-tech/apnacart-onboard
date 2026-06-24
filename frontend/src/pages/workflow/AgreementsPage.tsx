@@ -1,32 +1,59 @@
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AGREEMENT_VERSION } from '../../constants/workflow'
+import { ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE_BYTES } from '../../constants/phase2'
+import {
+  MERCHANT_AGREEMENT_SUMMARY,
+  PRIVACY_POLICY_POINTS,
+  TERMS_OF_SERVICE_POINTS,
+} from '../../constants/agreements'
+import { AGREEMENT_VERSION, WORKFLOW_STEPS } from '../../constants/workflow'
 import { saveAgreements } from '../../api/workflowApi'
 import { useAuth } from '../../context/AuthContext'
+import { useOnboarding } from '../../context/OnboardingContext'
+import { storedFileToPayload } from '../../utils/onboarding'
 import { WorkflowLayout } from '../../components/workflow/WorkflowLayout'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Checkbox } from '../../components/ui/Checkbox'
+import { FileUpload } from '../../components/FileUpload'
+import type { StoredFile } from '../../types/onboarding'
+
+const documentAcceptHint = 'PDF, PNG, JPG, JPEG — max 10 MB'
+
+function AgreementPoints({ points }: { points: readonly string[] }) {
+  return (
+    <ul className="mt-3 max-h-56 list-disc space-y-2 overflow-y-auto pl-5 text-sm text-slate-600">
+      {points.map((point) => (
+        <li key={point}>{point}</li>
+      ))}
+    </ul>
+  )
+}
 
 export function AgreementsPage() {
   const navigate = useNavigate()
-  const { session, canEdit, refreshDashboard } = useAuth()
+  const { state } = useOnboarding()
+  const { session, canEdit, refreshDashboard, dashboard } = useAuth()
   const [terms, setTerms] = useState(false)
   const [merchantAgreement, setMerchantAgreement] = useState(false)
   const [privacy, setPrivacy] = useState(false)
+  const [agreementFile, setAgreementFile] = useState<StoredFile | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const allAccepted = terms && merchantAgreement && privacy
+  const hasExistingAgreement = Boolean(state.formData.merchantAgreementUrl?.trim())
+  const hasAgreementFile = Boolean(agreementFile) || hasExistingAgreement
+  const allAccepted = terms && merchantAgreement && privacy && hasAgreementFile
 
   const handleSubmit = async () => {
     if (!session?.sessionToken || !allAccepted) return
     setLoading(true)
     setError(null)
     try {
-      await saveAgreements(session.sessionToken)
+      await saveAgreements(session.sessionToken, storedFileToPayload(agreementFile))
       await refreshDashboard()
-      navigate('/dashboard')
+      navigate('/workflow/review')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save agreements')
     } finally {
@@ -43,11 +70,7 @@ export function AgreementsPage() {
       <div className="space-y-4">
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">Terms of Service</h2>
-          <p className="mt-2 max-h-40 overflow-y-auto text-sm text-slate-600">
-            By using the ApnaCart platform, you agree to comply with all applicable laws, provide accurate
-            merchant information, maintain product quality standards, and fulfill orders per your stated delivery
-            commitments. ApnaCart reserves the right to suspend stores that violate platform policies.
-          </p>
+          <AgreementPoints points={TERMS_OF_SERVICE_POINTS} />
           <Checkbox
             className="mt-4"
             label="I accept the Terms of Service"
@@ -59,10 +82,23 @@ export function AgreementsPage() {
 
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">Merchant Agreement</h2>
-          <p className="mt-2 max-h-40 overflow-y-auto text-sm text-slate-600">
-            You authorize ApnaCart to list your products, process customer orders on your behalf, and display your
-            store information to customers. Commission and settlement terms will be provided separately upon approval.
+          <p className="mt-2 text-sm text-slate-600">
+            Official agreement between your business and ELVA for use of the ApnaCart platform and applications.
           </p>
+          <AgreementPoints points={MERCHANT_AGREEMENT_SUMMARY} />
+          <div className="mt-4">
+            <FileUpload
+              label="Signed Merchant Agreement"
+              required
+              value={agreementFile}
+              onChange={setAgreementFile}
+              existingUrl={state.formData.merchantAgreementUrl}
+              allowedTypes={ALLOWED_DOCUMENT_TYPES}
+              maxSizeBytes={MAX_DOCUMENT_SIZE_BYTES}
+              acceptHint={documentAcceptHint}
+              imagePreview
+            />
+          </div>
           <Checkbox
             className="mt-4"
             label="I accept the Merchant Agreement"
@@ -74,10 +110,7 @@ export function AgreementsPage() {
 
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">Privacy Policy</h2>
-          <p className="mt-2 max-h-40 overflow-y-auto text-sm text-slate-600">
-            Your business data, banking information, and documents will be stored securely and used only for merchant
-            onboarding, store activation, and regulatory compliance. We do not sell your data to third parties.
-          </p>
+          <AgreementPoints points={PRIVACY_POLICY_POINTS} />
           <Checkbox
             className="mt-4"
             label="I accept the Privacy Policy"
@@ -87,6 +120,15 @@ export function AgreementsPage() {
           />
         </Card>
 
+        {dashboard?.agreementsAccepted && (
+          <Card className="border-primary-200 bg-primary-50">
+            <p className="text-sm font-medium text-primary-900">Agreements already accepted.</p>
+            <Link to={WORKFLOW_STEPS[4].path} className="mt-4 inline-block">
+              <Button>Continue to {WORKFLOW_STEPS[4].title} →</Button>
+            </Link>
+          </Card>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
@@ -94,7 +136,7 @@ export function AgreementsPage() {
             Back to Dashboard
           </Button>
           <Button onClick={handleSubmit} loading={loading} disabled={!allAccepted || !canEdit}>
-            Save & Return to Dashboard
+            Save & Continue to Review
           </Button>
         </div>
       </div>

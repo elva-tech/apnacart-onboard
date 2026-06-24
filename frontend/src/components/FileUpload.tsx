@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { StoredFile } from '../types/onboarding'
+import { useWorkflowFormLocked } from '../context/WorkflowFormEditContext'
 import { fileToStoredFile } from '../utils/onboarding'
 import { Button } from './ui/Button'
 
@@ -13,6 +14,7 @@ interface FileUploadProps {
   maxSizeBytes: number
   acceptHint: string
   imagePreview?: boolean
+  existingUrl?: string
 }
 
 export function FileUpload({
@@ -25,11 +27,14 @@ export function FileUpload({
   maxSizeBytes,
   acceptHint,
   imagePreview = true,
+  existingUrl,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [localError, setLocalError] = useState<string | null>(null)
+  const locked = useWorkflowFormLocked()
 
   const handleFile = async (file: File | undefined) => {
+    if (locked) return
     setLocalError(null)
     if (!file) return
 
@@ -52,8 +57,9 @@ export function FileUpload({
   }
 
   const displayError = error || localError
-  const isImage = value?.type.startsWith('image/')
+  const isImage = value?.type.startsWith('image/') || (existingUrl && !value)
   const isPdf = value?.type === 'application/pdf'
+  const previewSrc = value?.dataUrl || existingUrl
 
   return (
     <div className="w-full">
@@ -67,33 +73,39 @@ export function FileUpload({
           displayError ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'
         }`}
       >
-        {value ? (
+        {value || existingUrl ? (
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-            {imagePreview && isImage ? (
+            {imagePreview && isImage && previewSrc ? (
               <img
-                src={value.dataUrl}
+                src={previewSrc}
                 alt={`${label} preview`}
                 className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
               />
             ) : (
               <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-slate-200 bg-white">
                 <span className="text-xs font-medium text-slate-600">
-                  {isPdf ? 'PDF' : 'FILE'}
+                  {isPdf ? 'PDF' : value || existingUrl ? 'FILE' : 'FILE'}
                 </span>
               </div>
             )}
             <div className="flex-1 text-center sm:text-left">
-              <p className="text-sm font-medium text-slate-800">{value.name}</p>
-              <p className="text-xs text-slate-500">File uploaded</p>
-              <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
-                <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
-                  Replace
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => onChange(null)}>
-                  Remove
-                </Button>
-              </div>
+              <p className="text-sm font-medium text-slate-800">{value?.name || 'Uploaded file'}</p>
+              <p className="text-xs text-slate-500">{value ? 'Ready to save' : 'Saved on server'}</p>
+              {!locked && (
+                <div className="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
+                  <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
+                    Replace
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => onChange(null)}>
+                    Remove
+                  </Button>
+                </div>
+              )}
             </div>
+          </div>
+        ) : locked ? (
+          <div className="text-center">
+            <p className="text-sm text-slate-500">No file uploaded</p>
           </div>
         ) : (
           <div className="text-center">

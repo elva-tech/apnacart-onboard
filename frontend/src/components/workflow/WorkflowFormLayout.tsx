@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { WORKFLOW_STEPS, getWorkflowStepIdForPath } from '../../constants/workflow'
+import { WorkflowFormEditProvider } from '../../context/WorkflowFormEditContext'
 import { WorkflowLayout } from './WorkflowLayout'
 
 interface WorkflowFormLayoutProps {
@@ -22,7 +23,7 @@ export function WorkflowFormLayout({ title, subtitle, workflowStepId, children }
           Step {stepId} · {step.title}
         </p>
       )}
-      {children}
+      <WorkflowFormEditProvider>{children}</WorkflowFormEditProvider>
     </WorkflowLayout>
   )
 }

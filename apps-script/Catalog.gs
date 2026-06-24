@@ -251,6 +251,11 @@ function rowToMerchantObject(headers, row) {
     step5Progress: String(val('Step 5 Progress') || '').trim(),
     catalogSkipped: String(val('Catalog Skipped') || '').trim(),
     catalogSkippedAt: String(val('Catalog Skipped At') || '').trim(),
+    storeAssetsSkipped: String(val('Store Assets Skipped') || '').trim(),
+    storeAssetsSkippedAt: String(val('Store Assets Skipped At') || '').trim(),
+    merchantAgreementUrl: String(val('Merchant Agreement URL') || '').trim(),
+    reviewConfirmed: String(val('Review Confirmed') || '').trim(),
+    reviewConfirmedAt: String(val('Review Confirmed At') || '').trim(),
     row: row,
     headers: headers,
   };

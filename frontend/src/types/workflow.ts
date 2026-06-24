@@ -37,6 +37,8 @@ export interface DashboardData {
   overallProgress: number
   agreementsAccepted: boolean
   catalogSkipped?: boolean
+  storeAssetsSkipped?: boolean
+  reviewConfirmed?: boolean
 }
 
 export interface AdminMerchantSummary {

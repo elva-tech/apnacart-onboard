@@ -50,11 +50,10 @@ export function BusinessInfoPage() {
           <Input label="Owner Name" required {...register('ownerName')} error={errors.ownerName?.message} />
           <Input
             label="GST Number"
-            required
             placeholder="22AAAAA0000A1Z5"
             {...register('gstNumber')}
             error={errors.gstNumber?.message}
-            hint="15-character GSTIN"
+            hint="Optional — 15-character GSTIN if your business is registered"
           />
           <Input
             label="PAN Number"

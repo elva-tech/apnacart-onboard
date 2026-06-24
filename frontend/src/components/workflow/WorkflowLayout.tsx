@@ -2,7 +2,10 @@ import { Link, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { WORKFLOW_STEPS, isWorkflowStepActive } from '../../constants/workflow'
 import { useAuth } from '../../context/AuthContext'
+import { useOnboarding } from '../../context/OnboardingContext'
 import { AppShell } from '../layout/AppShell'
+import { WorkflowFormEditProvider } from '../../context/WorkflowFormEditContext'
+import { getWorkflowStepProgress } from '../../utils/hubSectionStatus'
 import { getProgressBadgeClasses } from '../../utils/progressColors'
 
 interface WorkflowLayoutProps {
@@ -15,13 +18,14 @@ interface WorkflowLayoutProps {
 export function WorkflowLayout({ title, subtitle, currentStep, children }: WorkflowLayoutProps) {
   const location = useLocation()
   const { dashboard } = useAuth()
+  const { state } = useOnboarding()
 
   const nav = (
     <nav className="mx-auto max-w-6xl overflow-x-auto px-4 sm:px-6">
       <div className="flex gap-1 py-2">
         {WORKFLOW_STEPS.map((step) => {
           const active = currentStep === step.id || isWorkflowStepActive(step, location.pathname)
-          const progress = dashboard?.steps.find((s) => s.step === step.id)?.progress ?? 0
+          const progress = getWorkflowStepProgress(step.id, state.formData, dashboard)
           return (
             <Link
               key={step.id}
@@ -52,14 +56,15 @@ export function WorkflowLayout({ title, subtitle, currentStep, children }: Workf
       )}
       {dashboard?.isReadOnly && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This submission is read-only ({dashboard.workflowStatus}). You cannot edit until rejected by admin.
+          This submission is read-only ({dashboard.workflowStatus}). You can view your data but cannot make changes
+          unless an admin rejects the application for corrections.
         </div>
       )}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-2 text-sm text-slate-600 sm:text-base">{subtitle}</p>}
       </div>
-      {children}
+      <WorkflowFormEditProvider>{children}</WorkflowFormEditProvider>
     </AppShell>
   )
 }

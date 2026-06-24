@@ -2,14 +2,17 @@ import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { WORKFLOW_STEPS } from '../../constants/workflow'
 import { useAuth } from '../../context/AuthContext'
+import { useOnboarding } from '../../context/OnboardingContext'
 import { WorkflowLayout } from '../../components/workflow/WorkflowLayout'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { ProgressBadge } from '../../components/ui/ProgressBadge'
+import { getOverallWorkflowProgress, getWorkflowStepProgress } from '../../utils/hubSectionStatus'
 import { getProgressBarClasses, getProgressLabel } from '../../utils/progressColors'
 
 export function DashboardPage() {
   const { dashboard, refreshDashboard, canEdit } = useAuth()
+  const { state } = useOnboarding()
 
   useEffect(() => {
     void refreshDashboard()
@@ -23,7 +26,7 @@ export function DashboardPage() {
     )
   }
 
-  const overall = dashboard.overallProgress
+  const overall = getOverallWorkflowProgress(state.formData, dashboard)
 
   return (
     <WorkflowLayout
@@ -58,8 +61,8 @@ export function DashboardPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {WORKFLOW_STEPS.map((step) => {
-            const progress = dashboard.steps.find((s) => s.step === step.id)
-            const value = progress?.progress ?? 0
+            const value = getWorkflowStepProgress(step.id, state.formData, dashboard)
+            const complete = value === 100
             const catalogSkipped = step.id === 3 && dashboard.catalogSkipped
             return (
               <Card key={step.id} className="flex flex-col">
@@ -81,8 +84,8 @@ export function DashboardPage() {
                   />
                 </div>
                 <Link to={step.path} className="mt-4 block">
-                  <Button size="sm" variant="outline" className="w-full" disabled={!canEdit && !progress?.complete}>
-                    {progress?.complete ? 'View' : 'Continue'}
+                  <Button size="sm" variant="outline" className="w-full" disabled={!canEdit && !complete}>
+                    {complete ? 'View' : 'Continue'}
                   </Button>
                 </Link>
               </Card>

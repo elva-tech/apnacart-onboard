@@ -2,7 +2,15 @@
   "rewrites": [
     {
       "source": "/api/onboarding",
-      "destination": "https://script.google.com/macros/s/AKfycbxUQhqY2AHUStDtbvFP-hLy1eAXu6MPzHASucDY3DvgD5Ukt-T_baREfcvPMtAynr_XnQ/exec"
+      "destination": "https://script.google.com/macros/s/AKfycbw6SCCc2TcA-BNCPQVPCZS9eXu5t9_bzqbho02wjdUhkjFTRoqC3McniAiPr8KOaY6doA/exec"
+    },
+    {
+      "source": "/api/geocode/pincode/:pincode",
+      "destination": "https://api.postalpincode.in/pincode/:pincode"
+    },
+    {
+      "source": "/api/geocode/nominatim",
+      "destination": "https://nominatim.openstreetmap.org/search"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

@@ -5,6 +5,7 @@ import { getWorkflowStepIdForPath } from '../constants/workflow'
 import { useAuth } from '../context/AuthContext'
 import { useOnboarding } from '../context/OnboardingContext'
 import type { OnboardingFormData } from '../types/onboarding'
+import { stripUnchangedFileFields } from '../utils/onboarding'
 
 export function useStepSave() {
   const location = useLocation()
@@ -20,8 +21,9 @@ export function useStepSave() {
       if (!session?.sessionToken || !canEdit) return
       const merged = { ...state.formData, ...partial }
       const stepNum = step ?? getStepForRoute()
+      const payload = stripUnchangedFileFields(merged, partial)
       try {
-        await saveWorkflowStep(session.sessionToken, stepNum, merged)
+        await saveWorkflowStep(session.sessionToken, stepNum, payload)
         await refreshDashboard()
       } catch (err) {
         console.error('Save failed:', err)

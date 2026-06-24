@@ -1,8 +1,9 @@
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { brandingSchema, type BrandingForm } from '../schemas/onboarding'
+import { createBrandingSchema, type BrandingForm } from '../schemas/onboarding'
 import { useOnboarding } from '../context/OnboardingContext'
 import { useWorkflowFormSubmit } from '../hooks/useWorkflowFormSubmit'
+import { pickDirtyFileFields } from '../utils/onboarding'
 import { ImageUpload } from '../components/ImageUpload'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -18,9 +19,9 @@ export function BrandingPage() {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<BrandingForm>({
-    resolver: zodResolver(brandingSchema),
+    resolver: zodResolver(createBrandingSchema({ logoUrl: state.formData.logoUrl })),
     defaultValues: {
       storeDescription: state.formData.storeDescription,
       brandColor: state.formData.brandColor,
@@ -30,13 +31,14 @@ export function BrandingPage() {
   })
 
   const onSubmit = (data: BrandingForm) => {
-    if (!data.logo) return
-    submitAndReturn({
-      storeDescription: data.storeDescription,
-      brandColor: data.brandColor,
-      logo: data.logo,
-      banner: data.banner,
-    })
+    submitAndReturn(
+      pickDirtyFileFields({
+        storeDescription: data.storeDescription,
+        brandColor: data.brandColor,
+        ...(dirtyFields.logo ? { logo: data.logo } : {}),
+        ...(dirtyFields.banner ? { banner: data.banner } : {}),
+      }),
+    )
   }
 
   return (
@@ -52,6 +54,7 @@ export function BrandingPage() {
                 required
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.logoUrl}
                 error={errors.logo?.message as string | undefined}
               />
             )}
@@ -65,6 +68,7 @@ export function BrandingPage() {
                 label="Store Banner"
                 value={field.value}
                 onChange={field.onChange}
+                existingUrl={state.formData.bannerUrl}
                 error={errors.banner?.message as string | undefined}
               />
             )}
