@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/onboarding",
-      "destination": "https://script.google.com/macros/s/AKfycbw6SCCc2TcA-BNCPQVPCZS9eXu5t9_bzqbho02wjdUhkjFTRoqC3McniAiPr8KOaY6doA/exec"
+      "destination": "https://script.google.com/macros/s/AKfycbwzgoAB1L_US5KBC_nus9dOHPFPYrGkPdrkT2-xS3TEIaLfiGcC63BZ0r8WOacfIe4AZw/exec"
     },
     {
       "source": "/api/geocode/pincode/:pincode",
